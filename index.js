@@ -32,8 +32,8 @@ const transporter = nodemailer.createTransport({
     host: 'smtp.mailtrap.io',
     port: 2525,
     auth: {
-        user: '351026618024c8',
-        pass: '9b8ab488a3052f'
+        user: 'ce610dca22ef9c',
+        pass: '96cbed681965e0'
     }
 })
 
@@ -135,62 +135,72 @@ router.post('/verify', async(ctx, next) => {
         '_id': ObjectID(id)
     })
 
+    const now               = new Date()
+    const lastDifference    = now - currentUser.last_login_failed 
+    const lastDiffInSecond  = Math.round(((lastDifference % 86400000) % 3600000) / 60000 * 60)
 
-    // let countAttempts = currentUser.attempts+1
-
-    if (currentUser.verify_code != "") {
-        const now           = new Date()
-        const calculate     = now - currentUser.last_login_failed 
-        const diffInSecond = Math.round(((calculate % 86400000) % 3600000) / 60000 * 60)
-        
-        console.log(diffInSecond)
-        if(diffInSecond < 10){
-            let remain = 10 - diffInSecond
-            return await ctx.render('./login', { id: currentUser._id, msg: 'wait for ' + remain +' seconds.'  })
-        }else if (Bcrypt.compareSync(verify_code, currentUser.verify_code)) {
-            await ctx.app.user.updateOne({ '_id': ObjectID(id) }, {
-                $set: {
-                    'attempts'      : 1,
-                    'verify_code'   : ""
-                }
-            })                 
-            ctx.body    = "Welcome " + currentUser.name +", you are logged in!"
-        } else if(currentUser.attempts >= 3){
-            await ctx.app.user.updateOne({ '_id': ObjectID(id) }, {
-                $set: {
-                    'attempts'          : mongodb.Int32(currentUser.attempts + 1),
-                    'last_login_failed' : now, 
-                    'disable'           : true 
-                }
-            })
-            return ctx.render('./index', {id:currentUser._id, msg:`${currentUser.attempts} attempts, your account has been locked!`})
-        }else{
-            await ctx.app.user.updateOne({ '_id': ObjectID(id) }, {
-                $set: {
-                    'attempts'          : mongodb.Int32(currentUser.attempts + 1),
-                    'last_login_failed' : now 
-                }
-            })
-
-            return ctx.render('./login', {id:currentUser._id, msg:`${currentUser.attempts} attempts, enters 2 tries within 10 seconds`})
-        }
+    const codeCreatedDifference     = now - currentUser.code_created
+    const codeCreatedDiffInSecond   = Math.round(((codeCreatedDifference % 86400000) % 3600000) / 60000 * 60)
+    
+    // console.log(lastDiffInSecond)
+    console.log(codeCreatedDiffInSecond)
+    
+    // If last failed login smaller than 10 second
+    if(lastDiffInSecond < 10){
+        let remain = 10 - lastDiffInSecond
+        return await ctx.render('./login', { id: currentUser._id, msg: 'Try again after ' + remain +' seconds.'  })
     }
-    else {
-        return ctx.render('./index', {msg: 'Your verification code is expired. Please login again to resend the new verification code!'})
-    }        
+    // If verify code is correct
+    else if (Bcrypt.compareSync(verify_code, currentUser.verify_code)) {
+        // If verify code is expired afer 120 second or 2 minutes
+        if(codeCreatedDiffInSecond > 120){
+            return await ctx.render('./index', { id: currentUser._id, msg: 'Your verify code is expired, please login again to generate new code!'  })
+        }
+        await ctx.app.user.updateOne({ '_id': ObjectID(id) }, {
+            $set: {
+                'attempts'      : 1,
+                'verify_code'   : ""
+            }
+        })                 
+        ctx.body    = "Welcome " + currentUser.name +", you are logged in!"
+    } 
+    // If user wrong for 3 attempts
+    else if(currentUser.attempts >= 3){
+        await ctx.app.user.updateOne({ '_id': ObjectID(id) }, {
+            $set: {
+                'attempts'          : mongodb.Int32(currentUser.attempts + 1),
+                'last_login_failed' : now, 
+                'disable'           : true 
+            }
+        })
+        return ctx.render('./index', {id:currentUser._id, msg:`${currentUser.attempts} attempts, your account has been locked!`})
+    }
+    // If user wrong for but less than 3 attempts
+    else{
+        await ctx.app.user.updateOne({ '_id': ObjectID(id) }, {
+            $set: {
+                'attempts'          : mongodb.Int32(currentUser.attempts + 1),
+                'last_login_failed' : now 
+            }
+        })
+
+        return ctx.render('./login', {id:currentUser._id, msg:`${currentUser.attempts} attempts failed, try again after 10 second`})
+    }
+         
 })
 
 router.post('/create-user/', async(ctx) => {
     let password    = ctx.request.body.password
     let hash        = Bcrypt.hashSync(password)
     let data        = {
-            'name'              : ctx.request.body.username,
+            'name'              : ctx.request.body.name,
             'username'          : ctx.request.body.username,
             'email'             : ctx.request.body.email,
             'password'          : hash,
             'verify_code'       : null,
-            'last_login_failed' : 0,
+            'code_created'      : date,
             'attempts'          : 0,
+            'last_login_failed' : date,
             'disable'           : false
     }
     ctx.body        = await ctx.app.user.insert(data)
@@ -206,6 +216,7 @@ router.get('/create-user/', async(ctx) => {
             'email'             : 'faisol@kilkproductions.com',
             'password'          : hash,
             'verify_code'       : null,
+            'code_created'      : date,
             'attempts'          : 0,
             'last_login_failed' : date,
             'disable'           : false
