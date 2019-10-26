@@ -37,32 +37,7 @@ const transporter = nodemailer.createTransport({
     }
 })
 
-var deleteCode  = app.use(async (ctx, next) => {
-    const user      = await ctx.app.user.find().toArray()
-    const dateNow   = new Date()
-    user.forEach((element, index) => {
-        const code_created  = element.code_created
-        const calculate     = dateNow - code_created
-        const diffInMinutes = Math.round(((calculate % 86400000) % 3600000) / 60000)
-
-        if (diffInMinutes > 2) {
-            ctx.app.user.updateMany({
-                'code_created': code_created
-            }, {
-                $set: {
-                    'verify_code'   : '',                        
-                    'attempts'       : 1
-                }
-            })                
-        }
-    
-    });
-
-    await next()
-})
-
 router.get('/', async (ctx) => {    
-    await deleteCode
     return ctx.render('./index')
 })
 
@@ -125,8 +100,7 @@ router.post('/login', async (ctx, next) => {
 })
 
 router.post('/verify', async(ctx, next) => {
-    await deleteCode
-    // await next()
+
     let verify_code = ctx.request.body.verify_code
     let id          = ctx.request.body.id
     let timer       = 0
@@ -184,7 +158,7 @@ router.post('/verify', async(ctx, next) => {
             }
         })
 
-        return ctx.render('./login', {id:currentUser._id, msg:`${currentUser.attempts} attempts failed, try again after 10 second`})
+        return ctx.render('./login', {id:currentUser._id, msg:`${currentUser.attempts} attempts failed, try again after 10 seconds`})
     }
          
 })
