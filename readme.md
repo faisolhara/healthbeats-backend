@@ -1,8 +1,7 @@
 # Preparation
 
 Create database_
-You can create from mongo shell with this command_
-
+You can create from mongo shell with this command__
 ```bash
 use healtbeats
 ```
