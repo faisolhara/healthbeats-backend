@@ -1,12 +1,12 @@
 # Preparation
 
-Create database__
-You can create from mongo shell with this command__
+Create database <br/>
+You can create from mongo shell with this command
 ```bash
 use healtbeats
 ```
 
-Login to mailtrap.io using username and password to see a verify code_
+Login to mailtrap.io using username and password to see a verify code<br/>
 email		: faisol@kilkproductions.com_
 password	: bigsecret_
 
