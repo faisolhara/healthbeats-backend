@@ -1,6 +1,6 @@
 # Preparation
 
-Create database_
+Create database__
 You can create from mongo shell with this command__
 ```bash
 use healtbeats
